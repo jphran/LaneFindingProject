@@ -1,56 +1,72 @@
 # **Finding Lane Lines on the Road** 
-[![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
 
-<img src="examples/laneLines_thirdPass.jpg" width="480" alt="Combined Image" />
-
-Overview
 ---
 
-When we drive, we use our eyes to decide where to go.  The lines on the road that show us where the lanes are act as our constant reference for where to steer the vehicle.  Naturally, one of the first things we would like to do in developing a self-driving car is to automatically detect lane lines using an algorithm.
 
-In this project you will detect lane lines in images using Python and OpenCV.  OpenCV means "Open-Source Computer Vision", which is a package that has many useful tools for analyzing images.  
+## Goals
+* Make a pipeline that reliably (90%) draws lane lines on the road
 
-To complete the project, two files will be submitted: a file containing project code and a file containing a brief write up explaining your solution. We have included template files to be used both for the [code](https://github.com/udacity/CarND-LaneLines-P1/blob/master/P1.ipynb) and the [writeup](https://github.com/udacity/CarND-LaneLines-P1/blob/master/writeup_template.md).The code file is called P1.ipynb and the writeup template is writeup_template.md 
+[//]: # (Image References)
 
-To meet specifications in the project, take a look at the requirements in the [project rubric](https://review.udacity.com/#!/rubrics/322/view)
+[image1]: ./examples/grayscale.jpg "Grayscale"
 
-
-Creating a Great Writeup
----
-For this project, a great writeup should provide a detailed response to the "Reflection" section of the [project rubric](https://review.udacity.com/#!/rubrics/322/view). There are three parts to the reflection:
-
-1. Describe the pipeline
-
-2. Identify any shortcomings
-
-3. Suggest possible improvements
-
-We encourage using images in your writeup to demonstrate how your pipeline works.  
-
-All that said, please be concise!  We're not looking for you to write a book here: just a brief description.
-
-You're not required to use markdown for your writeup.  If you use another method please just submit a pdf of your writeup. Here is a link to a [writeup template file](https://github.com/udacity/CarND-LaneLines-P1/blob/master/writeup_template.md). 
-
-
-The Project
 ---
 
-## If you have already installed the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) you should be good to go!   If not, you should install the starter kit to get started on this project. ##
+## Reflection
 
-**Step 1:** Set up the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) if you haven't already.
+### 1. The pipeline 
 
-**Step 2:** Open the code in a Jupyter Notebook
+NOTE: there is room for parameter tuning in several of the pipeline steps as mentioned
 
-You will complete the project code in a Jupyter notebook.  If you are unfamiliar with Jupyter Notebooks, check out [Udacity's free course on Anaconda and Jupyter Notebooks](https://classroom.udacity.com/courses/ud1111) to get started.
+1. Perform a Gaussian Blur with a kernel size of 9 pixels. This reduces the amount of white noise present when processing. The kernel size was determined experimentally as a decently robust, yet effective filter size. TUNE: the kernal size <p align="center"><img src="./outputImages/blurImage.jpg"></p>
 
-Jupyter is an Ipython notebook where you can run blocks of code and see results interactively.  All the code for this project is contained in a Jupyter notebook. To start Jupyter in your browser, use terminal to navigate to your project directory and then run the following command at the terminal prompt (be sure you've activated your Python 3 carnd-term1 environment as described in the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) installation instructions!):
+2. **Optional** Perform a color conversion to gray-scale. This supposedly makes the edge detection better because of the one dimensional gradient, but using the latest release of openCV has shown that it's performance on three color channels versus one color channel is similar. <p align="center"><img src="./examples/grayscale.jpg"></p>
 
-`> jupyter notebook`
+3. Perform Canny Edge Detection with a low threshold of 65 and a high threshold of 120. This returns all pixels with a gradient above the high threshold and pixels with gradient above the low threshold that are adjacent to a high threshold pixel. TUNE: the low and high thresholds (typical values of high threshold are 2-3x larger than low) <p align="center"><img src="./outputImages/cannyImg.jpg"></p>
 
-A browser window will appear showing the contents of the current directory.  Click on the file called "P1.ipynb".  Another browser window will appear displaying the notebook.  Follow the instructions in the notebook to complete the project.  
+4. Crop the image to a region of interest. This reduces the time and space complexity. The region of interest is a trapezoidal polygon with the vertices \[(0, yMax), (3/8 * xMax, 1/2 * yMax), (5/8 * xMax, 1/2 * yMax), (xMax, yMax)]. TUNE: the roi vertices <p align="center"><img src="./outputImages/roiImg.jpg"></p>
 
-**Step 3:** Complete the project and submit both the Ipython notebook and the project writeup
 
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
+5. Perform Hough Transform to identify lines with a mesh resolution of 1 pixel, an angular resolution of 1 deg, a minimum vote of 15, a minimum line length of 12 pixels, and a maximum line gap of 10 pixels. TUNE: mesh and line parameters <p align="center"><img src="./outputImages/HoughLines.jpg"></p>
 
+6. Process the returned lines into lane lines. This can use the most work, as it was built by me, an individual vs the opencv library. I sorted lines into bins based on their slope in relation to it's neighbors, it's position in the image, and it's normal distance to the others in the bin. TUNE: the slope cutoff, the position in the image, and the distance to neighbors <p align="center"><img src="./outputImages/LeftRightLanes.jpg"></p>
+
+7. The final step is extrapolating the detected lines into the lane perimeter. This was done by fitting a curve through the line segments to get a smooth, continuous line. They were both extrapolated to the distance of the furthest line segment from the camera. <p align="center"><img src="./outputImages/FinalGuideImg.jpg"></p>
+
+
+### 2. Shortcomings and potential shortcomings with the pipeline
+
+**Known**
+
+* Shadows cause a very high gradient in the same color range as the road that then manifest as lines in the pipeline
+    
+* Tire marks, old lines (scrubbed lane lines), sticks, etc. will appear to be lines in this pipeline
+
+* This pipeline is only good for highway driving, it will break down at intersections and where the highway diverges
+
+**Potential**
+
+* Tight radius curvature, i.e. lines that cross the middle of the image, may expose issues with the line sorting algorithm
+
+* Lack of visible spectrum light at night will cause errors with the Canny edge detection
+
+* Reflectors that are use in the US southwest may not appear as lines in Canny edge detection
+
+* Standing water and rain could cause more edge detection issues
+
+* High density traffic will expose the heavy reliance of region of interest masking that this pipeline uses, e.g. if a car is too close to the camera, the curves of the bumper will appear in the final lane lines.
+
+
+### 3. Possible improvements to the pipeline
+
+To keep things simple, I am only going to suggest improvments for the specific use case of highway driving in a continuous lane.
+
+* Filter the lane lines. Even something simple like a median filter of size 5 would improve the performance of the pipeline greatly (the challenge video would be much more smooth)
+
+* Include a state machine to switch rois, canny, and hough parameters. This will provide some clever detection depending on the traffic and road conditions
+
+* Fuse with IR spectrum (and other sensors) to avoid the nighttime issues
+
+* Combine with known data such as map data
+
+* Fix distortion of image by calibrating the camera
