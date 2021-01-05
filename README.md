@@ -74,6 +74,6 @@ To keep things simple, I am only going to suggest improvments for the specific u
 
 ---
 ## Example Output
-<video align="center" width="320" height="240" controls>
-  <source src="./test_videos_output/solidWhiteRight.mp4" type="video/mp4">
+<video width="320" height="240" controls>
+  <source src="test_videos_output/solidWhiteRight.mp4" type="video/mp4">
 </video>
