@@ -70,3 +70,10 @@ To keep things simple, I am only going to suggest improvments for the specific u
 * Combine with known data such as map data
 
 * Fix distortion of image by calibrating the camera
+
+
+---
+## Example Output
+<video align="center" width="320" height="240" controls>
+  <source src="./test_videos_output/solidWhiteRight.mp4" type="video/mp4">
+</video>
